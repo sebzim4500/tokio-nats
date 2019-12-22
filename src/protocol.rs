@@ -1,19 +1,13 @@
 use crate::errors::Error;
-use bytes::{Bytes, BytesMut, Buf};
+use bytes::{Buf, Bytes, BytesMut};
 use serde::Deserialize;
 use subslice::SubsliceExt;
 use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Op {
-    Server(ServerOp),
-    Client(ClientOp),
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ServerOp {
     Info(ServerInfo),
-    Msg(usize, Bytes),
+    Msg(usize, String, Bytes),
     Ok,
     Err(String),
     Ping,
@@ -65,7 +59,8 @@ impl Decoder for NatsCodec {
                 return Ok(None);
             };
             let mut parts = src[4..line_end].split(|c| c == &b' ');
-            let subject = parts.next().ok_or_else(|| Error::ProtocolError)?; // TODO use this somehow
+            let subject =
+                std::str::from_utf8(parts.next().ok_or_else(|| Error::ProtocolError)?)?.to_string();
             let sid = std::str::from_utf8(parts.next().ok_or_else(|| Error::ProtocolError)?)?
                 .parse::<usize>()?;
             let len = std::str::from_utf8(parts.next().ok_or_else(|| Error::ProtocolError)?)?
@@ -74,7 +69,7 @@ impl Decoder for NatsCodec {
                 src.advance(line_end + 2);
                 let message = src.split_to(len);
                 src.advance(2);
-                Ok(Some(ServerOp::Msg(sid, message.freeze())))
+                Ok(Some(ServerOp::Msg(sid, subject, message.freeze())))
             } else {
                 Ok(None)
             }

@@ -1,6 +1,7 @@
 use crate::connection::NatsClientInner;
 use crate::protocol::ClientOp;
-use bytes::Bytes;
+
+use crate::NatsMessage;
 use futures_util::stream::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -10,7 +11,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 struct Subscription {
     topic: String,
-    sender: Sender<Bytes>,
+    sender: Sender<NatsMessage>,
 }
 
 pub(crate) struct SubscriptionManager {
@@ -26,15 +27,16 @@ impl SubscriptionManager {
         }
     }
 
-    pub(crate) fn allocate_sid(&mut self, topic: String, sender: Sender<Bytes>) -> usize {
+    pub(crate) fn allocate_sid(&mut self, topic: String, sender: Sender<NatsMessage>) -> usize {
         let sid = self.next_id;
         self.next_id += 1;
 
-        self.subscriptions.insert(sid, Subscription { topic, sender });
+        self.subscriptions
+            .insert(sid, Subscription { topic, sender });
         sid
     }
 
-    pub(crate) fn sender_with_sid(&mut self, sid: usize) -> Option<&mut Sender<Bytes>> {
+    pub(crate) fn sender_with_sid(&mut self, sid: usize) -> Option<&mut Sender<NatsMessage>> {
         self.subscriptions.get_mut(&sid).map(|sub| &mut sub.sender)
     }
 
@@ -43,10 +45,12 @@ impl SubscriptionManager {
     }
 
     pub(crate) fn all_subscriptions(&self) -> Vec<(usize, String)> {
-        self.subscriptions.iter().map(|(&sid, sub)| (sid, sub.topic.clone())).collect()
+        self.subscriptions
+            .iter()
+            .map(|(&sid, sub)| (sid, sub.topic.clone()))
+            .collect()
     }
 }
-
 
 /// A stream corresponding to a specific NATS subscription.
 ///
@@ -58,7 +62,7 @@ impl SubscriptionManager {
 /// Each subscription has a fixed size buffer with size specified in `NatsConfig`. If this queue
 /// fills up messages will be dropped.
 pub struct NatsSubscription {
-    pub(crate) receiver: Receiver<Bytes>,
+    pub(crate) receiver: Receiver<NatsMessage>,
     pub(crate) connection: Arc<NatsClientInner>,
     pub(crate) sid: usize,
 }
@@ -78,7 +82,7 @@ impl Drop for NatsSubscription {
 }
 
 impl Stream for NatsSubscription {
-    type Item = Bytes;
+    type Item = NatsMessage;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.receiver.poll_recv(cx)

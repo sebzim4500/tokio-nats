@@ -1,26 +1,25 @@
 use crate::errors::Error;
-use crate::protocol::{ClientInfo, ClientOp, NatsCodec, Op, ServerInfo, ServerOp};
+use crate::protocol::{ClientInfo, ClientOp, NatsCodec, ServerInfo, ServerOp};
 use crate::subscriptions::SubscriptionManager;
-use crate::NatsSubscription;
+use crate::{NatsMessage, NatsSubscription};
 use bytes::Bytes;
 use parking_lot::Mutex;
 use std::future::Future;
-use std::net::{SocketAddr};
+use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{channel, Sender, Receiver, error::TrySendError};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tokio::sync::mpsc::{channel, error::TrySendError, Receiver, Sender};
 use tokio::time::{delay_for, timeout};
-use std::sync::atomic::{AtomicU64, Ordering};
-use crate::util::current_time_ms;
-use futures_util::stream::{SplitStream, SplitSink, StreamExt, TryStreamExt};
-use futures_util::sink::{SinkExt};
+
 use futures_util::future::{FutureExt, TryFutureExt};
 use futures_util::select;
+use futures_util::sink::SinkExt;
+use futures_util::stream::StreamExt;
+use log::{debug, error, info, trace, warn};
 use tokio_util::codec::Framed;
-use log::{warn, trace, error, debug, info};
 
 /// A handle to a NATS connection, which allows subscribing and publishing messages.
 ///
@@ -95,7 +94,7 @@ pub struct NatsConfig {
 pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
     let (op_sender, op_receiver) = channel(config.buffer_size);
 
-    let (info, framed) = create_connection(&config).await?;
+    let (_, framed) = create_connection(&config).await?;
 
     let client_inner = Arc::new(NatsClientInner {
         config: config.clone(),
@@ -121,7 +120,9 @@ pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
     })
 }
 
-async fn create_connection(config: &NatsConfig) -> Result<(ServerInfo, Framed<TcpStream, NatsCodec>), Error> {
+async fn create_connection(
+    config: &NatsConfig,
+) -> Result<(ServerInfo, Framed<TcpStream, NatsCodec>), Error> {
     debug!("creating connection to NATS");
     let tcp_connection = TcpStream::connect(&SocketAddr::from_str(&config.server).unwrap()).await?;
     let mut framed = Framed::new(tcp_connection, NatsCodec::new());
@@ -163,8 +164,6 @@ struct NatsConnection {
 impl NatsConnection {
     async fn run(&mut self) {
         debug!("Running nats connection");
-        let mut server_response_sender = self.op_sender.clone();
-
         start_pinging(self.client_inner.config.ping_period, self.op_sender.clone());
 
         loop {
@@ -176,11 +175,11 @@ impl NatsConnection {
             };
             trace!("Got action {:?}", next);
             match next {
-                NatsAction::Server(op) => {
-                    self.handle_server_op(op)
-                },
+                NatsAction::Server(op) => self.handle_server_op(op),
                 NatsAction::Client(op) => {
-                    if op == ClientOp::Ping && self.last_pong.elapsed() > self.client_inner.config.ping_period * 2 {
+                    if op == ClientOp::Ping
+                        && self.last_pong.elapsed() > self.client_inner.config.ping_period * 2
+                    {
                         warn!("NATS server has stopped responding to pings, reconnecting");
                         self.reconnect().await;
                     }
@@ -188,22 +187,26 @@ impl NatsConnection {
                         warn!("Error writing, reconnecting {:?}", err);
                         self.reconnect().await;
                     }
-                },
+                }
                 NatsAction::SenderDropped => {
                     debug!("Sender has been dropped, closing connection");
                     break;
-                },
+                }
                 NatsAction::ConnectionDropped => {
                     warn!("NATS connection has been dropped, reconnecting");
                     self.reconnect().await;
-                },
+                }
             }
         }
     }
 
     async fn try_reconnect(&self) -> Result<(ServerInfo, Framed<TcpStream, NatsCodec>), Error> {
         let (info, mut framed) = create_connection(&self.client_inner.config).await?;
-        let subscriptions = self.client_inner.subscription_manager.lock().all_subscriptions();
+        let subscriptions = self
+            .client_inner
+            .subscription_manager
+            .lock()
+            .all_subscriptions();
         for (sid, topic) in subscriptions {
             framed.send(ClientOp::Sub(topic.to_string(), sid)).await?;
         }
@@ -213,8 +216,14 @@ impl NatsConnection {
 
     async fn reconnect(&mut self) {
         loop {
-            match timeout(self.client_inner.config.connection_timeout, self.try_reconnect()).await.unwrap_or(Err(Error::ConnectionTimeout))  {
-                Ok((info, framed)) => {
+            match timeout(
+                self.client_inner.config.connection_timeout,
+                self.try_reconnect(),
+            )
+            .await
+            .unwrap_or(Err(Error::ConnectionTimeout))
+            {
+                Ok((_, framed)) => {
                     self.last_pong = Instant::now();
                     self.connection = framed;
                     return;
@@ -222,10 +231,9 @@ impl NatsConnection {
                 Err(err) => {
                     info!("Error reconnecting, retrying {:?}", err);
                     delay_for(self.client_inner.config.reconnection_period).await;
-                },
+                }
             }
-        };
-
+        }
     }
 
     fn handle_server_op(&mut self, op: ServerOp) {
@@ -236,13 +244,17 @@ impl NatsConnection {
             ServerOp::Pong => {
                 self.last_pong = Instant::now();
             }
-            ServerOp::Msg(sid, message) => {
-                if let Some(sender) = self.client_inner
+            ServerOp::Msg(sid, subject, message) => {
+                if let Some(sender) = self
+                    .client_inner
                     .subscription_manager
                     .lock()
                     .sender_with_sid(sid)
                 {
-                    if let Err(TrySendError::Full(_)) = sender.try_send(message) {
+                    if let Err(TrySendError::Full(_)) = sender.try_send(NatsMessage {
+                        subject,
+                        payload: message,
+                    }) {
                         error!("Slow consumer, dropping message from server")
                     }
                 }

@@ -1,12 +1,12 @@
 #![feature(async_closure)]
 
 use bytes::Bytes;
+use env_logger;
 use futures_util::StreamExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Instant, SystemTime, UNIX_EPOCH, Duration};
+use std::time::{Duration, Instant};
 use tokio_nats::{connect, NatsConfigBuilder};
-use env_logger;
 
 #[tokio::main()]
 async fn main() -> Result<(), tokio_nats::Error> {
@@ -24,10 +24,8 @@ async fn main() -> Result<(), tokio_nats::Error> {
     tokio::spawn(
         subscription
             .map(move |message| {
-                let nanos = Instant::now()
-                    .duration_since(start_time)
-                    .as_nanos();
-                let time_sent = std::str::from_utf8(&message[..])
+                let nanos = Instant::now().duration_since(start_time).as_nanos();
+                let time_sent = std::str::from_utf8(&message.payload[..])
                     .unwrap()
                     .parse::<u128>()
                     .unwrap();
@@ -41,12 +39,12 @@ async fn main() -> Result<(), tokio_nats::Error> {
 
     loop {
         std::thread::sleep(Duration::from_millis(1));
-        let nanos = Instant::now()
-            .duration_since(start_time)
-            .as_nanos();
+        let nanos = Instant::now().duration_since(start_time).as_nanos();
         let bytes = Bytes::from(format!("{}", nanos).as_bytes().to_vec());
-        for i in 0 .. 5 {
-            pub_client.publish("TIMES".to_string(), bytes.clone()).await?;
+        for _i in 0..5 {
+            pub_client
+                .publish("TIMES".to_string(), bytes.clone())
+                .await?;
         }
     }
 }
