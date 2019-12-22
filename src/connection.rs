@@ -4,7 +4,6 @@ use crate::subscriptions::SubscriptionManager;
 use crate::{NatsMessage, NatsSubscription};
 use bytes::Bytes;
 use parking_lot::Mutex;
-use std::future::Future;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -23,7 +22,8 @@ use tokio_util::codec::Framed;
 
 /// A handle to a NATS connection, which allows subscribing and publishing messages.
 ///
-/// Can be cloned, so that multiple `NatsClient`s can share a single connection.
+/// Can be cloned, so that multiple `NatsClient`s can share a single connection. The `NatsClient`
+/// automatically resubscribes upon connection failure.
 #[derive(Clone)]
 pub struct NatsClient {
     inner: Arc<NatsClientInner>,
@@ -35,29 +35,27 @@ impl NatsClient {
     ///
     /// The future will resolve as soon as the message has been successfully queued into the buffer,
     /// there is no guarantee that messages will be delivered in the case of connection failures.
-    pub fn publish(
-        &mut self,
-        subject: String,
-        message: Bytes,
-    ) -> impl Future<Output = Result<(), Error>> + '_ {
+    pub async fn publish<S: Into<String>, B: Into<Bytes>>(&mut self, subject: S, message: B) -> Result<(), Error> {
         self.send_queue
-            .send(ClientOp::Pub(subject, message))
+            .send(ClientOp::Pub(subject.into(), message.into()))
             .map_err(|_| Error::ClientClosed)
+            .await
     }
 
     /// Subscribe to a particular subject or pattern.
     ///
     /// Since NATS does not send acknowledgements for subscriptions, this function returns
     /// immediately and it is possible to miss messages sent soon after `subscribe` returns.
-    pub async fn subscribe(&mut self, subject: String) -> Result<NatsSubscription, Error> {
+    pub async fn subscribe<S: Into<String>>(&mut self, subject: S) -> Result<NatsSubscription, Error> {
+        let subject_string = subject.into();
         let (sender, receiver) = channel(self.inner.config.buffer_size);
         let sid = self
             .inner
             .subscription_manager
             .lock()
-            .allocate_sid(subject.clone(), sender);
+            .allocate_sid(subject_string.clone(), sender);
         self.send_queue
-            .send(ClientOp::Sub(subject, sid))
+            .send(ClientOp::Sub(subject_string, sid))
             .await
             .map_err(|_| Error::SendBufferFull)?;
         Ok(NatsSubscription {
@@ -81,10 +79,20 @@ pub struct NatsConfig {
     server: String,
     #[builder(default = "None")]
     name: Option<String>,
+    /// How often should the client send `PING` messages to the server to confirm that the connection
+    /// is alive.
+    ///
+    /// Default 5 seconds.
     #[builder(default = "Duration::from_secs(5)")]
     ping_period: Duration,
+    /// How long should the the client wait between reconnection attempts if the connection fails.
+    ///
+    /// Default 1 second.
     #[builder(default = "Duration::from_secs(1)")]
     reconnection_period: Duration,
+    /// How long should the client wait while trying to establish a connection to the server.
+    ///
+    /// Default 5 seconds.
     #[builder(default = "Duration::from_secs(5)")]
     connection_timeout: Duration,
 }

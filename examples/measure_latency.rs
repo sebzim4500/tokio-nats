@@ -1,6 +1,5 @@
 #![feature(async_closure)]
 
-use bytes::Bytes;
 use env_logger;
 use futures_util::StreamExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -18,7 +17,7 @@ async fn main() -> Result<(), tokio_nats::Error> {
     let mut pub_client = connect(config.clone()).await?;
     let counter = Arc::new(AtomicUsize::new(0));
     let mut sub_client = connect(config).await?;
-    let subscription = sub_client.subscribe("TIMES".to_string()).await?;
+    let subscription = sub_client.subscribe("TIMES").await?;
     let start_time = Instant::now();
 
     tokio::spawn(
@@ -40,10 +39,10 @@ async fn main() -> Result<(), tokio_nats::Error> {
     loop {
         std::thread::sleep(Duration::from_millis(1));
         let nanos = Instant::now().duration_since(start_time).as_nanos();
-        let bytes = Bytes::from(format!("{}", nanos).as_bytes().to_vec());
+        let bytes = format!("{}", nanos).as_bytes().to_vec();
         for _i in 0..5 {
             pub_client
-                .publish("TIMES".to_string(), bytes.clone())
+                .publish("TIMES", bytes.clone())
                 .await?;
         }
     }
