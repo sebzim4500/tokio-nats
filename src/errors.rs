@@ -8,6 +8,7 @@ pub enum Error {
     SendBufferFull,
     IOError(std::io::Error),
     EncodingError(Utf8Error),
+    ConnectionTimeout,
 }
 
 impl From<std::io::Error> for Error {

@@ -1,8 +1,8 @@
 use crate::errors::Error;
-use bytes::{Bytes, BytesMut};
+use bytes::{Bytes, BytesMut, Buf};
 use serde::Deserialize;
 use subslice::SubsliceExt;
-use tokio::codec::{Decoder, Encoder};
+use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Op {

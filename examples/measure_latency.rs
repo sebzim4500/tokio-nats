@@ -6,9 +6,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH, Duration};
 use tokio_nats::{connect, NatsConfigBuilder};
+use env_logger;
 
 #[tokio::main()]
 async fn main() -> Result<(), tokio_nats::Error> {
+    env_logger::init();
     let config = NatsConfigBuilder::default()
         .server("127.0.0.1:4222")
         .build()
@@ -42,8 +44,8 @@ async fn main() -> Result<(), tokio_nats::Error> {
         let nanos = Instant::now()
             .duration_since(start_time)
             .as_nanos();
-        let bytes = Bytes::from(format!("{}", nanos).as_bytes());
-        for i in 0 .. 10 {
+        let bytes = Bytes::from(format!("{}", nanos).as_bytes().to_vec());
+        for i in 0 .. 5 {
             pub_client.publish("TIMES".to_string(), bytes.clone()).await?;
         }
     }

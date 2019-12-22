@@ -1,4 +1,4 @@
-use crate::connection::NatsConnection;
+use crate::connection::NatsClientInner;
 use crate::protocol::ClientOp;
 use bytes::Bytes;
 use futures_util::stream::Stream;
@@ -8,8 +8,13 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::sync::mpsc::{Receiver, Sender};
 
+struct Subscription {
+    topic: String,
+    sender: Sender<Bytes>,
+}
+
 pub(crate) struct SubscriptionManager {
-    subscriptions: HashMap<usize, Sender<Bytes>>,
+    subscriptions: HashMap<usize, Subscription>,
     next_id: usize,
 }
 
@@ -21,20 +26,24 @@ impl SubscriptionManager {
         }
     }
 
-    pub(crate) fn allocate_sid(&mut self, sender: Sender<Bytes>) -> usize {
+    pub(crate) fn allocate_sid(&mut self, topic: String, sender: Sender<Bytes>) -> usize {
         let sid = self.next_id;
         self.next_id += 1;
 
-        self.subscriptions.insert(sid, sender);
+        self.subscriptions.insert(sid, Subscription { topic, sender });
         sid
     }
 
     pub(crate) fn sender_with_sid(&mut self, sid: usize) -> Option<&mut Sender<Bytes>> {
-        self.subscriptions.get_mut(&sid)
+        self.subscriptions.get_mut(&sid).map(|sub| &mut sub.sender)
     }
 
     pub(crate) fn forget_sid(&mut self, sid: usize) -> bool {
         self.subscriptions.remove(&sid).is_some()
+    }
+
+    pub(crate) fn all_subscriptions(&self) -> Vec<(usize, String)> {
+        self.subscriptions.iter().map(|(&sid, sub)| (sid, sub.topic.clone())).collect()
     }
 }
 
@@ -50,7 +59,7 @@ impl SubscriptionManager {
 /// fills up messages will be dropped.
 pub struct NatsSubscription {
     pub(crate) receiver: Receiver<Bytes>,
-    pub(crate) connection: Arc<NatsConnection>,
+    pub(crate) connection: Arc<NatsClientInner>,
     pub(crate) sid: usize,
 }
 
