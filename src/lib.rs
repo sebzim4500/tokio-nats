@@ -11,6 +11,7 @@ mod connection;
 mod errors;
 mod protocol;
 mod subscriptions;
+mod util;
 
 pub use connection::{connect, NatsClient, NatsConfig, NatsConfigBuilder};
 pub use errors::Error;

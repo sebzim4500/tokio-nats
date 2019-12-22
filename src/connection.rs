@@ -12,6 +12,10 @@ use std::sync::Arc;
 use tokio::codec::Framed;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, Sender};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tokio::timer::delay_for;
+use std::sync::atomic::{AtomicU64, Ordering};
+use crate::util::current_time_ms;
 
 /// A handle to a NATS connection, which allows subscribing and publishing messages.
 ///
@@ -20,13 +24,6 @@ use tokio::sync::mpsc::{channel, Sender};
 pub struct NatsClient {
     connection: Arc<NatsConnection>,
     send_queue: Sender<ClientOp>,
-}
-
-pub(crate) struct NatsConnection {
-    pub(crate) config: NatsConfig,
-    pub(crate) server_info: ServerInfo,
-    pub(crate) subscription_manager: Mutex<SubscriptionManager>,
-    pub(crate) control_sender: Mutex<Sender<ClientOp>>,
 }
 
 impl NatsClient {
@@ -78,13 +75,17 @@ pub struct NatsConfig {
     buffer_size: usize,
     /// The host and port of the NATS server to connect to. E.g. `127.0.0.1:4222`
     server: String,
+    #[builder(default = "None")]
+    name: Option<String>,
+    #[builder(default = "Duration::from_secs(5)")]
+    ping_period: Duration,
 }
 
 /// Make a new NATS connection. Return a `NatsClient` which can be cloned to obtain multiple handles
 /// to the same connection.
 pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
-    let connection = TcpStream::connect(&SocketAddr::from_str(&config.server).unwrap()).await?;
-    let mut framed = Framed::new(connection, NatsCodec::new());
+    let tcp_connection = TcpStream::connect(&SocketAddr::from_str(&config.server).unwrap()).await?;
+    let mut framed = Framed::new(tcp_connection, NatsCodec::new());
     let first_op = framed.next().await.ok_or(Error::ProtocolError)??;
     let info = if let ServerOp::Info(info) = first_op {
         info
@@ -95,7 +96,7 @@ pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
         .send(ClientOp::Connect(ClientInfo {
             verbose: false,
             pedantic: false,
-            name: None,
+            name: config.name.clone(),
             lang: "tokio-nats".to_string(),
             version: "0.1".to_string(),
         }))
@@ -103,7 +104,7 @@ pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
     let (op_sender, op_receiver) = channel(config.buffer_size);
 
     let connection = Arc::new(NatsConnection {
-        config,
+        config: config.clone(),
         server_info: info,
         subscription_manager: Mutex::new(SubscriptionManager::new()),
         control_sender: Mutex::new(op_sender.clone()),
@@ -114,27 +115,14 @@ pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
 
     let mut server_response_sender = op_sender.clone();
     let connection_for_task = connection.clone();
-    tokio::spawn(framed_read.map_err(Error::from).map(move |x| match x? {
-            ServerOp::Ping => {
-                let _ = server_response_sender.try_send(ClientOp::Pong);
-                Ok(())
-            }
-            ServerOp::Msg(sid, message) => {
-                if let Some(sender) = connection_for_task
-                    .subscription_manager
-                    .lock()
-                    .sender_with_sid(sid)
-                {
-                    if let Err(err) = sender.try_send(message) {
-                        if !err.is_closed() {
-                            println!("Slow consumer :(") // TODO something better here
-                        }
-                    }
-                }
-                Ok(())
-            }
-            _ => Ok(())
-        }).for_each(async move |c: Result<(), Error>| {
+
+    start_pinging(config.ping_period, op_sender.clone());
+
+    let last_pong_millis = AtomicU64::new(current_time_ms());
+
+    tokio::spawn(framed_read.map_err(Error::from)
+        .map_ok(move |x| handle_msg(x, &mut server_response_sender, &connection_for_task, &last_pong_millis))
+        .for_each(async move |c: Result<(), Error>| {
             if let Err(err) = c {
                 println!("Error {:?}", err);
             }
@@ -144,4 +132,45 @@ pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
         connection,
         send_queue: op_sender,
     })
+}
+
+pub(crate) struct NatsConnection {
+    pub(crate) config: NatsConfig,
+    pub(crate) server_info: ServerInfo,
+    pub(crate) subscription_manager: Mutex<SubscriptionManager>,
+    pub(crate) control_sender: Mutex<Sender<ClientOp>>,
+}
+
+fn start_pinging(ping_period: Duration, mut sender: Sender<ClientOp>) {
+    tokio::spawn(async move {
+        loop {
+            delay_for(ping_period).await;
+            let err_ = sender.send(ClientOp::Ping).await; // TODO log here
+        }
+    });
+}
+
+fn handle_msg(msg: ServerOp, server_response_sender: &mut Sender<ClientOp>, connection: &NatsConnection, last_pong: &AtomicU64) {
+    match msg {
+        ServerOp::Ping => {
+            let _ = server_response_sender.try_send(ClientOp::Pong);
+        }
+        ServerOp::Pong => {
+            last_pong.store(current_time_ms(), Ordering::SeqCst)
+        }
+        ServerOp::Msg(sid, message) => {
+            if let Some(sender) = connection
+                .subscription_manager
+                .lock()
+                .sender_with_sid(sid)
+            {
+                if let Err(err) = sender.try_send(message) {
+                    if !err.is_closed() {
+                        println!("Slow consumer :(") // TODO something better here
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
 }
