@@ -41,9 +41,7 @@ async fn main() -> Result<(), tokio_nats::Error> {
         let nanos = Instant::now().duration_since(start_time).as_nanos();
         let bytes = format!("{}", nanos).as_bytes().to_vec();
         for _i in 0..5 {
-            pub_client
-                .publish("TIMES", bytes.clone())
-                .await?;
+            pub_client.publish("TIMES", bytes.clone()).await?;
         }
     }
 }

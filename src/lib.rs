@@ -1,5 +1,3 @@
-#![feature(async_closure)]
-
 //! [![Crates.io](https://img.shields.io/crates/v/tokio-nats.svg)](https://crates.io/crates/tokio-nats)
 //! [![docs.rs](https://docs.rs/tokio-nats/badge.svg)](https://docs.rs/tokio-nats)
 //! A client for NATS using `tokio` and async-await.

@@ -1,6 +1,6 @@
 [package]
 name = "tokio-nats"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Sebastian Zimmer <sebastian.zim@googlemail.com>"]
 edition = "2018"
 license = "LGPL-3.0"
@@ -8,7 +8,7 @@ description = "Async-await ready NATS library"
 repository = "https://github.com/sebzim4500/tokio-nats"
 
 [dependencies]
-tokio = { version = "0.2.6", features = ["full"] }
+tokio = { version = "0.2", features = ["full"] }
 tokio-util = { version = "0.2.0", features = ["codec"] }
 bytes = "0.5.3"
 serde_json = "1.0.41"
