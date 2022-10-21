@@ -12,7 +12,6 @@
 //! ```
 //! ## Usage
 //! ```rust
-//! #![feature(async_closure)]
 //!
 //! use tokio_nats::{NatsConfigBuilder, connect};
 //! use futures_util::StreamExt;
@@ -26,7 +25,7 @@
 //!
 //!     client.publish("MySubject", "hello world".as_bytes()).await.unwrap();
 //!
-//!     client.subscribe("MyOtherSubject").await.unwrap().for_each(async move |message| {
+//!     client.subscribe("MyOtherSubject").await.unwrap().for_each(|message| async move {
 //!         println!("Received message {:?}", message);
 //!     }).await;
 //! }

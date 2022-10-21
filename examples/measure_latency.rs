@@ -1,5 +1,3 @@
-#![feature(async_closure)]
-
 use env_logger;
 use futures_util::StreamExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -33,7 +31,7 @@ async fn main() -> Result<(), tokio_nats::Error> {
                     println!("{:?}: Latency = {}", Instant::now(), nanos - time_sent);
                 }
             })
-            .for_each(async move |()| {}),
+            .for_each(|_| async {}),
     );
 
     loop {

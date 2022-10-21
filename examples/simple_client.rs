@@ -1,5 +1,3 @@
-#![feature(async_closure)]
-
 use futures_util::StreamExt;
 use tokio_nats::{connect, NatsConfigBuilder};
 
@@ -20,7 +18,7 @@ async fn main() {
         .subscribe("MyOtherSubject")
         .await
         .unwrap()
-        .for_each(async move |message| {
+        .for_each(|message| async move {
             println!("Received message {:?}", message);
         })
         .await;

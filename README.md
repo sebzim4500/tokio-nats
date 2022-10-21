@@ -9,7 +9,6 @@ tokio-nats = "0.1.0"
 ```
 ## Usage
 ```rust
-#![feature(async_closure)]
 use tokio_nats::{NatsConfigBuilder, connect};
 use futures_util::StreamExt;
 async fn demo() {
