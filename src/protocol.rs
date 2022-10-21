@@ -104,11 +104,10 @@ impl Decoder for NatsCodec {
     }
 }
 
-impl Encoder for NatsCodec {
-    type Item = ClientOp;
+impl Encoder<ClientOp> for NatsCodec {
     type Error = Error;
 
-    fn encode(&mut self, item: Self::Item, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: ClientOp, dst: &mut BytesMut) -> Result<(), Self::Error> {
         match item {
             ClientOp::Connect(client_info) => {
                 dst.extend_from_slice(b"CONNECT ");

@@ -8,16 +8,16 @@ description = "Async-await ready NATS library"
 repository = "https://github.com/sebzim4500/tokio-nats"
 
 [dependencies]
-tokio = { version = "0.2", features = ["full"] }
-tokio-util = { version = "0.2.0", features = ["codec"] }
-bytes = "0.5.3"
+tokio = { version = "1.0", features = ["full"] }
+tokio-util = { version = "0.7.4", features = ["codec"] }
+bytes = "1.2.1"
 serde_json = "1.0.41"
 serde = { version = "1.0.102", features = ["derive"] }
 futures-util = { version = "0.3.1", features = ["sink", "async-await"] }
 subslice = "0.2.2"
-parking_lot = "0.9"
-derive_builder = "0.9"
+parking_lot = "0.12.1"
+derive_builder = "0.11.2"
 log = "0.4"
 
 [dev-dependencies]
-env_logger = "0.7.1"
+env_logger = "0.9.1"
