@@ -8,7 +8,6 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, error::TrySendError, Receiver, Sender};
 use tokio::time::{sleep, timeout};

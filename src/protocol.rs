@@ -60,10 +60,10 @@ impl Decoder for NatsCodec {
             };
             let mut parts = src[4..line_end].split(|c| c == &b' ');
             let subject =
-                std::str::from_utf8(parts.next().ok_or_else(|| Error::ProtocolError)?)?.to_string();
-            let sid = std::str::from_utf8(parts.next().ok_or_else(|| Error::ProtocolError)?)?
+                std::str::from_utf8(parts.next().ok_or(Error::ProtocolError)?)?.to_string();
+            let sid = std::str::from_utf8(parts.next().ok_or(Error::ProtocolError)?)?
                 .parse::<usize>()?;
-            let len = std::str::from_utf8(parts.next().ok_or_else(|| Error::ProtocolError)?)?
+            let len = std::str::from_utf8(parts.next().ok_or(Error::ProtocolError)?)?
                 .parse::<usize>()?;
             if line_end + len + 4 <= src.len() {
                 src.advance(line_end + 2);
