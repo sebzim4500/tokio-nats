@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use tokio;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{channel, error::TrySendError, Receiver, Sender};
-use tokio::time::{delay_for, timeout};
+use tokio::time::{sleep, timeout};
 
 use futures_util::future::{FutureExt, TryFutureExt};
 use futures_util::select;
@@ -183,7 +183,7 @@ impl NatsConnection {
 
         loop {
             let next: NatsAction = select! {
-                op = self.op_receiver.next().fuse() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
+                op = self.op_receiver.recv().fuse() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
                 op = self.connection.next().fuse() => op.map(|x| x.map(NatsAction::Server)
                         .unwrap_or(NatsAction::ConnectionDropped))
                     .unwrap_or(NatsAction::ConnectionDropped),
@@ -245,7 +245,7 @@ impl NatsConnection {
                 }
                 Err(err) => {
                     info!("Error reconnecting, retrying {:?}", err);
-                    delay_for(self.client_inner.config.reconnection_period).await;
+                    sleep(self.client_inner.config.reconnection_period).await;
                 }
             }
         }
@@ -285,10 +285,10 @@ pub(crate) struct NatsClientInner {
     pub(crate) control_sender: Mutex<Sender<ClientOp>>,
 }
 
-fn start_pinging(ping_period: Duration, mut sender: Sender<ClientOp>) {
+fn start_pinging(ping_period: Duration, sender: Sender<ClientOp>) {
     tokio::spawn(async move {
         loop {
-            delay_for(ping_period).await;
+            sleep(ping_period).await;
             match sender.send(ClientOp::Ping).await {
                 Ok(()) => {}
                 Err(_) => {
