@@ -9,6 +9,7 @@ pub enum Error {
     IOError(std::io::Error),
     EncodingError(Utf8Error),
     ConnectionTimeout,
+    HostResolutionFailed,
 }
 
 impl From<std::io::Error> for Error {

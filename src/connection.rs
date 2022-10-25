@@ -4,11 +4,9 @@ use crate::subscriptions::SubscriptionManager;
 use crate::{NatsMessage, NatsSubscription};
 use bytes::Bytes;
 use parking_lot::Mutex;
-use std::net::SocketAddr;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::net::TcpStream;
+use tokio::net::{lookup_host, TcpStream};
 use tokio::sync::mpsc::{channel, error::TrySendError, Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
@@ -138,7 +136,13 @@ async fn create_connection(
     config: &NatsConfig,
 ) -> Result<(ServerInfo, Framed<TcpStream, NatsCodec>), Error> {
     debug!("creating connection to NATS");
-    let tcp_connection = TcpStream::connect(&SocketAddr::from_str(&config.server).unwrap()).await?;
+    let socket_addr = lookup_host(&config.server)
+        .await?
+        .next()
+        .ok_or(Error::HostResolutionFailed)?;
+    debug!("Resolved socket address {:?}", socket_addr);
+    
+    let tcp_connection = TcpStream::connect(socket_addr).await?;
     let mut framed = Framed::new(tcp_connection, NatsCodec::new());
     let first_op = framed.next().await.ok_or(Error::ProtocolError)??;
     let info = if let ServerOp::Info(info) = first_op {
