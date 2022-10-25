@@ -141,7 +141,7 @@ async fn create_connection(
         .next()
         .ok_or(Error::HostResolutionFailed)?;
     debug!("Resolved socket address {:?}", socket_addr);
-    
+
     let tcp_connection = TcpStream::connect(socket_addr).await?;
     let mut framed = Framed::new(tcp_connection, NatsCodec::new());
     let first_op = framed.next().await.ok_or(Error::ProtocolError)??;
@@ -156,7 +156,7 @@ async fn create_connection(
             pedantic: false,
             name: config.name.clone(),
             lang: "tokio-nats-rs".to_string(),
-            version: "0.1".to_string(),
+            version: "0.2.1".to_string(),
         }))
         .await?;
 

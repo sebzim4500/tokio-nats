@@ -1,6 +1,6 @@
 [package]
 name = "tokio-nats"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Sebastian Zimmer <sebastian.zim@googlemail.com>"]
 edition = "2018"
 license = "LGPL-3.0"
