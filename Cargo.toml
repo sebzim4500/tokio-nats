@@ -1,8 +1,8 @@
 [package]
 name = "tokio-nats"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Sebastian Zimmer <sebastian.zim@googlemail.com>"]
-edition = "2018"
+edition = "2021"
 license = "LGPL-3.0"
 description = "Async-await ready NATS library"
 repository = "https://github.com/sebzim4500/tokio-nats"
@@ -18,6 +18,10 @@ subslice = "0.2.2"
 parking_lot = "0.12.1"
 derive_builder = "0.11.2"
 log = "0.4"
+tokio-rustls = "0.24"
+rustls-webpki = "0.100"
+rustls-pemfile = "1.0"
 
 [dev-dependencies]
 env_logger = "0.9.1"
+pretty_env_logger = "0.4"

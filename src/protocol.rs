@@ -16,8 +16,16 @@ pub(crate) enum ServerOp {
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub(crate) struct ServerInfo {
-    server_id: String,
-    version: String,
+    pub(crate) server_id: String,
+    pub(crate) version: String,
+    #[serde(default)]
+    pub(crate) auth_required: bool,
+    #[serde(default)]
+    pub(crate) tls_required: bool,
+    #[serde(default)]
+    pub(crate) tls_verify: bool,
+    #[serde(default)]
+    pub(crate) tls_available: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

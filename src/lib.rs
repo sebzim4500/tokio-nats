@@ -40,6 +40,7 @@ mod connection;
 mod errors;
 mod protocol;
 mod subscriptions;
+mod tls;
 
 use bytes::Bytes;
 pub use connection::{connect, NatsClient, NatsConfig, NatsConfigBuilder};

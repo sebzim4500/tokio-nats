@@ -1,6 +1,7 @@
 use crate::errors::Error;
 use crate::protocol::{ClientInfo, ClientOp, NatsCodec, ServerInfo, ServerOp};
 use crate::subscriptions::SubscriptionManager;
+use crate::tls::tls_connection;
 use crate::{NatsMessage, NatsSubscription};
 use bytes::Bytes;
 use parking_lot::Mutex;
@@ -15,6 +16,7 @@ use futures_util::select;
 use futures_util::sink::SinkExt;
 use futures_util::stream::StreamExt;
 use log::{debug, error, info, trace, warn};
+use tokio_rustls::client::TlsStream;
 use tokio_util::codec::Framed;
 
 /// A handle to a NATS connection, which allows subscribing and publishing messages.
@@ -99,6 +101,10 @@ pub struct NatsConfig {
     /// Default 5 seconds.
     #[builder(default = "Duration::from_secs(5)")]
     connection_timeout: Duration,
+
+    ca_cert: Option<String>,
+    client_cert: Option<String>,
+    client_key: Option<String>,
 }
 
 /// Make a new NATS connection. Return a `NatsClient` which can be cloned to obtain multiple handles
@@ -132,10 +138,9 @@ pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
     })
 }
 
-async fn create_connection(
-    config: &NatsConfig,
-) -> Result<(ServerInfo, Framed<TcpStream, NatsCodec>), Error> {
+async fn create_connection(config: &NatsConfig) -> Result<(ServerInfo, FrameType), Error> {
     debug!("creating connection to NATS");
+
     let socket_addr = lookup_host(&config.server)
         .await?
         .next()
@@ -150,17 +155,53 @@ async fn create_connection(
     } else {
         return Err(Error::ProtocolError);
     };
-    framed
-        .send(ClientOp::Connect(ClientInfo {
-            verbose: false,
-            pedantic: false,
-            name: config.name.clone(),
-            lang: "tokio-nats-rs".to_string(),
-            version: "0.2.1".to_string(),
-        }))
-        .await?;
+
+    log::trace!("Info: {info:?}");
+
+    let mut framed = match (
+        info.tls_verify,
+        config.ca_cert.as_deref(),
+        config.client_cert.as_deref(),
+        config.client_key.as_deref(),
+    ) {
+        (true, Some(ca_cert), Some(client_cert), Some(client_key)) => {
+            let domain = config.server.split(':').next().ok_or(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid dns name",
+            ))?;
+
+            let tls_stream = tls_connection(
+                framed.into_inner(),
+                domain,
+                ca_cert,
+                client_cert,
+                client_key,
+            )
+            .await?;
+            FrameType::Tls(Framed::new(tls_stream, NatsCodec::new()))
+        }
+        _ => FrameType::Plain(framed),
+    };
+
+    let client_info = ClientOp::Connect(ClientInfo {
+        verbose: false,
+        pedantic: false,
+        name: config.name.clone(),
+        lang: "tokio-nats-rs".to_string(),
+        version: "0.2.1".to_string(),
+    });
+
+    match &mut framed {
+        FrameType::Plain(f) => f.send(client_info).await?,
+        FrameType::Tls(f) => f.send(client_info).await?,
+    };
 
     Ok((info, framed))
+}
+
+enum FrameType {
+    Plain(Framed<TcpStream, NatsCodec>),
+    Tls(Framed<TlsStream<TcpStream>, NatsCodec>),
 }
 
 #[derive(Debug)]
@@ -172,7 +213,7 @@ enum NatsAction {
 }
 
 struct NatsConnection {
-    connection: Framed<TcpStream, NatsCodec>,
+    connection: FrameType,
     op_receiver: Receiver<ClientOp>,
     op_sender: Sender<ClientOp>,
     client_inner: Arc<NatsClientInner>,
@@ -185,11 +226,19 @@ impl NatsConnection {
         start_pinging(self.client_inner.config.ping_period, self.op_sender.clone());
 
         loop {
-            let next: NatsAction = select! {
-                op = self.op_receiver.recv().fuse() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
-                op = self.connection.next().fuse() => op.map(|x| x.map(NatsAction::Server)
+            let next = match &mut self.connection {
+                FrameType::Plain(c) => select! {
+                    op = self.op_receiver.recv().fuse() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
+                    op = c.next().fuse() => op.map(|x| x.map(NatsAction::Server)
                         .unwrap_or(NatsAction::ConnectionDropped))
-                    .unwrap_or(NatsAction::ConnectionDropped),
+                        .unwrap_or(NatsAction::ConnectionDropped),
+                },
+                FrameType::Tls(c) => select! {
+                    op = self.op_receiver.recv().fuse() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
+                    op = c.next().fuse() => op.map(|x| x.map(NatsAction::Server)
+                        .unwrap_or(NatsAction::ConnectionDropped))
+                        .unwrap_or(NatsAction::ConnectionDropped),
+                },
             };
             trace!("Got action {:?}", next);
             match next {
@@ -201,9 +250,19 @@ impl NatsConnection {
                         warn!("NATS server has stopped responding to pings, reconnecting");
                         self.reconnect().await;
                     }
-                    if let Err(err) = self.connection.send(op).await {
-                        warn!("Error writing, reconnecting {:?}", err);
-                        self.reconnect().await;
+                    match &mut self.connection {
+                        FrameType::Plain(c) => {
+                            if let Err(err) = c.send(op).await {
+                                warn!("Error writing, reconnecting {:?}", err);
+                                self.reconnect().await;
+                            }
+                        }
+                        FrameType::Tls(c) => {
+                            if let Err(err) = c.send(op).await {
+                                warn!("Error writing, reconnecting {:?}", err);
+                                self.reconnect().await;
+                            }
+                        }
                     }
                 }
                 NatsAction::SenderDropped => {
@@ -218,7 +277,7 @@ impl NatsConnection {
         }
     }
 
-    async fn try_reconnect(&self) -> Result<(ServerInfo, Framed<TcpStream, NatsCodec>), Error> {
+    async fn try_reconnect(&self) -> Result<(ServerInfo, FrameType), Error> {
         let (info, mut framed) = create_connection(&self.client_inner.config).await?;
         let subscriptions = self
             .client_inner
@@ -226,7 +285,10 @@ impl NatsConnection {
             .lock()
             .all_subscriptions();
         for (sid, topic) in subscriptions {
-            framed.send(ClientOp::Sub(topic.to_string(), sid)).await?;
+            match &mut framed {
+                FrameType::Plain(c) => c.send(ClientOp::Sub(topic.to_string(), sid)).await?,
+                FrameType::Tls(c) => c.send(ClientOp::Sub(topic.to_string(), sid)).await?,
+            };
         }
 
         Ok((info, framed))
