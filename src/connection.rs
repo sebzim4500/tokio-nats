@@ -101,9 +101,23 @@ pub struct NatsConfig {
     /// Default 5 seconds.
     #[builder(default = "Duration::from_secs(5)")]
     connection_timeout: Duration,
-
+    /// CA certificate location in PEM format.
+    /// Mandatory to enable TLS connection
+    ///
+    /// Default: None
+    #[builder(default = "None")]
     ca_cert: Option<String>,
+    /// Client-side certificate location in PEM format.
+    /// Mandatory to enable TLS connection
+    ///
+    /// Default: None
+    #[builder(default = "None")]
     client_cert: Option<String>,
+    /// Client-side key location in PEM format.
+    /// Mandatory to enable TLS connection
+    ///
+    /// Default: None
+    #[builder(default = "None")]
     client_key: Option<String>,
 }
 
