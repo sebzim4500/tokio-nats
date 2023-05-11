@@ -46,6 +46,7 @@ use bytes::Bytes;
 pub use connection::{connect, NatsClient, NatsConfig, NatsConfigBuilder};
 pub use errors::Error;
 pub use subscriptions::NatsSubscription;
+pub use tls::{TLSConnBuild, TLSConnBuildError, TlsConnParams};
 
 /// A message that has been received by the NATS client.
 #[derive(Debug, Clone)]

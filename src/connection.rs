@@ -1,7 +1,7 @@
 use crate::errors::Error;
 use crate::protocol::{ClientInfo, ClientOp, NatsCodec, ServerInfo, ServerOp};
 use crate::subscriptions::SubscriptionManager;
-use crate::tls::tls_connection;
+use crate::tls::{self, TlsConnParams};
 use crate::{NatsMessage, NatsSubscription};
 use bytes::Bytes;
 use parking_lot::Mutex;
@@ -101,24 +101,39 @@ pub struct NatsConfig {
     /// Default 5 seconds.
     #[builder(default = "Duration::from_secs(5)")]
     connection_timeout: Duration,
-    /// CA certificate location in PEM format.
-    /// Mandatory to enable TLS connection
+    /// TLS Parameter must be built with contents in PEM format
+    /// from CA Certificates, client certificates and client key
+    /// This is Mandatory to enable TLS connection
+    /// _e.g._
+    /// ```ignore
+    ///     let key_location = "client_key_location.pem";
+    ///     let cert_location = "client_cert_location.pem";
+    ///     let ca_location = "ca_cert_location.pem";
+    ///
+    ///     let mut build = TLSConnBuild::new();
+    ///     let cert_file = File::open(cert_location).expect("cannot open private cert file");
+    ///     let mut reader = BufReader::new(cert_file);
+    ///     build
+    ///         .client_certs(&mut reader)
+    ///         .expect("Unable to handle client certs");
+    ///
+    ///     let key_file = File::open(key_location).expect("Cannot open private key file");
+    ///     let mut reader = BufReader::new(key_file);
+    ///     build
+    ///         .client_key(&mut reader)
+    ///         .expect("Unable to handle client key");
+    ///
+    ///     let ca_file = File::open(ca_location).expect("Cannot open CA cert file");
+    ///     let mut reader = BufReader::new(ca_file);
+    ///     build
+    ///         .root_cert(&mut reader)
+    ///         .expect("Unable to load CA cert");
+    ///     let tls_param = build.build().expect("Unable to build TLS Parameters");
+    /// ```
     ///
     /// Default: None
     #[builder(default = "None")]
-    ca_cert: Option<String>,
-    /// Client-side certificate location in PEM format.
-    /// Mandatory to enable TLS connection
-    ///
-    /// Default: None
-    #[builder(default = "None")]
-    client_cert: Option<String>,
-    /// Client-side key location in PEM format.
-    /// Mandatory to enable TLS connection
-    ///
-    /// Default: None
-    #[builder(default = "None")]
-    client_key: Option<String>,
+    tls_params: Option<TlsConnParams>,
 }
 
 /// Make a new NATS connection. Return a `NatsClient` which can be cloned to obtain multiple handles
@@ -172,26 +187,16 @@ async fn create_connection(config: &NatsConfig) -> Result<(ServerInfo, FrameType
 
     log::trace!("Info: {info:?}");
 
-    let mut framed = match (
-        info.tls_verify,
-        config.ca_cert.as_deref(),
-        config.client_cert.as_deref(),
-        config.client_key.as_deref(),
-    ) {
-        (true, Some(ca_cert), Some(client_cert), Some(client_key)) => {
+    let mut framed = match (info.tls_verify, config.tls_params.clone()) {
+        (true, Some(tls_params)) => {
             let domain = config.server.split(':').next().ok_or(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "invalid dns name",
             ))?;
 
-            let tls_stream = tls_connection(
-                framed.into_inner(),
-                domain,
-                ca_cert,
-                client_cert,
-                client_key,
-            )
-            .await?;
+            let tls_stream = tls::connect(framed.into_inner(), domain, tls_params)
+                .await
+                .map_err(|_| Error::ClientClosed)?;
             FrameType::Tls(Framed::new(tls_stream, NatsCodec::new()))
         }
         _ => FrameType::Plain(framed),

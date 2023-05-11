@@ -1,5 +1,7 @@
+use std::{fs::File, io::BufReader};
+
 use futures_util::StreamExt;
-use tokio_nats::{connect, NatsConfigBuilder};
+use tokio_nats::{connect, NatsConfigBuilder, TLSConnBuild};
 
 #[tokio::main]
 async fn main() {
@@ -19,11 +21,29 @@ async fn main() {
 
     println!("Parameters given: Addr: {nats_addr}\n\tCA location: {ca_location}\n\tClient cert location: {cert_location}\n\tClient key location: {key_location}");
 
+    let mut tls_build = TLSConnBuild::new();
+
+    let cert_file = File::open(cert_location).expect("cannot open private cert file");
+    let mut reader = BufReader::new(cert_file);
+    tls_build
+        .client_certs(&mut reader)
+        .expect("Unable to handle client certs");
+
+    let key_file = File::open(key_location).expect("Cannot open private key file");
+    let mut reader = BufReader::new(key_file);
+    tls_build
+        .client_key(&mut reader)
+        .expect("Unable to handle client key");
+
+    let ca_file = File::open(ca_location).expect("Cannot open CA cert file");
+    let mut reader = BufReader::new(ca_file);
+    tls_build
+        .root_cert(&mut reader)
+        .expect("Unable to load CA cert");
+
     let config = NatsConfigBuilder::default()
         .server(nats_addr)
-        .ca_cert(ca_location)
-        .client_cert(cert_location)
-        .client_key(key_location)
+        .tls_params(tls_build.build().expect("Unable to build TLS Parameters"))
         .build()
         .unwrap();
     let mut client = connect(config).await.unwrap();
