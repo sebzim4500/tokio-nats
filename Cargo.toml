@@ -21,6 +21,7 @@ log = "0.4"
 tokio-rustls = "0.24"
 rustls-webpki = "0.100"
 rustls-pemfile = "1.0"
+derive_more = "0.99"
 
 [dev-dependencies]
 env_logger = "0.9.1"
