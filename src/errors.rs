@@ -1,7 +1,8 @@
+use std::error::Error as stdErr;
 use std::num::ParseIntError;
 use std::str::Utf8Error;
 
-#[derive(Debug)]
+#[derive(Debug, derive_more::Display)]
 pub enum Error {
     ProtocolError,
     ClientClosed,
@@ -35,3 +36,5 @@ impl From<serde_json::error::Error> for Error {
         Error::ProtocolError
     }
 }
+
+impl stdErr for Error {}

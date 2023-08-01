@@ -147,7 +147,7 @@ pub(crate) async fn connect(
         .with_root_certificates(tls_params.root_cert);
 
     let config = config_builder
-        .with_single_cert(tls_params.client_certs, tls_params.client_key)
+        .with_client_auth_cert(tls_params.client_certs, tls_params.client_key)
         .map_err(|_| TLSConnBuildError::UnableToConnect("Unable to TLS config".to_owned()))?;
 
     let connector = TlsConnector::from(Arc::new(config));
