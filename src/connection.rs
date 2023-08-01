@@ -207,7 +207,7 @@ async fn create_connection(config: &NatsConfig) -> Result<(ServerInfo, FrameType
         pedantic: false,
         name: config.name.clone(),
         lang: "tokio-nats-rs".to_string(),
-        version: "0.2.1".to_string(),
+        version: "0.3.0".to_string(),
     });
 
     match &mut framed {

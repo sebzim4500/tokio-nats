@@ -8,7 +8,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! tokio-nats = "0.2.1"
+//! tokio-nats = "0.3.0"
 //! ```
 //! ## Usage
 //! ```rust
