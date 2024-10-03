@@ -1,14 +1,13 @@
+use std::io;
 use std::io::BufRead;
 use std::sync::Arc;
 
 use rustls_pemfile::{certs, read_one};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
-use tokio_rustls::rustls::{
-    Certificate, ClientConfig, OwnedTrustAnchor, PrivateKey, RootCertStore, ServerName,
-};
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, TrustAnchor};
+use tokio_rustls::rustls::{ClientConfig, RootCertStore};
 use tokio_rustls::TlsConnector;
-use webpki::TrustAnchor;
 
 #[derive(Debug)]
 pub enum TLSConnBuildError {
@@ -19,17 +18,27 @@ pub enum TLSConnBuildError {
     UnableToConnect(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TlsConnParams {
-    pub(crate) client_key: PrivateKey,
-    pub(crate) client_certs: Vec<Certificate>,
+    pub(crate) client_key: PrivateKeyDer<'static>,
+    pub(crate) client_certs: Vec<CertificateDer<'static>>,
     pub(crate) root_cert: RootCertStore,
+}
+
+impl Clone for TlsConnParams {
+    fn clone(&self) -> Self {
+        TlsConnParams {
+            client_key: self.client_key.clone_key(),
+            client_certs: self.client_certs.clone(),
+            root_cert: self.root_cert.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct TLSConnBuild {
-    client_key: Option<PrivateKey>,
-    client_certs: Vec<Certificate>,
+    client_key: Option<PrivateKeyDer<'static>>,
+    client_certs: Vec<CertificateDer<'static>>,
     root_cert: RootCertStore,
 }
 
@@ -39,20 +48,20 @@ impl Default for TLSConnBuild {
     }
 }
 
-fn load_key(mut reader: &mut dyn BufRead) -> Result<PrivateKey, TLSConnBuildError> {
+fn load_key(mut reader: &mut dyn BufRead) -> Result<PrivateKeyDer<'static>, TLSConnBuildError> {
     loop {
         match read_one(&mut reader).map_err(|_| TLSConnBuildError::UnableParseClientKey)? {
-            Some(rustls_pemfile::Item::ECKey(key)) => {
+            Some(rustls_pemfile::Item::Sec1Key(key)) => {
                 log::trace!("ECKey");
-                return Ok(PrivateKey(key));
+                return Ok(PrivateKeyDer::Sec1(key));
             }
-            Some(rustls_pemfile::Item::RSAKey(key)) => {
+            Some(rustls_pemfile::Item::Pkcs1Key(key)) => {
                 log::trace!("RSAKey");
-                return Ok(PrivateKey(key));
+                return Ok(PrivateKeyDer::Pkcs1(key));
             }
-            Some(rustls_pemfile::Item::PKCS8Key(key)) => {
+            Some(rustls_pemfile::Item::Pkcs8Key(key)) => {
                 log::trace!("PKCS8Key");
-                return Ok(PrivateKey(key));
+                return Ok(PrivateKeyDer::Pkcs8(key));
             }
             None => {
                 log::debug!("No type found");
@@ -75,7 +84,7 @@ impl TLSConnBuild {
 
     pub fn client_certs(&mut self, mut reader: &mut dyn BufRead) -> Result<(), TLSConnBuildError> {
         self.client_certs = certs(&mut reader)
-            .map(|mut certs| certs.drain(..).map(Certificate).collect())
+            .collect::<Result<Vec<_>, io::Error>>()
             .map_err(|_| TLSConnBuildError::UnableParseClientCertificate)?;
 
         Ok(())
@@ -87,25 +96,19 @@ impl TLSConnBuild {
     }
 
     pub fn root_cert(&mut self, mut reader: &mut dyn BufRead) -> Result<(), TLSConnBuildError> {
-        let certs = certs(&mut reader).map_err(|_| TLSConnBuildError::UnableParseCaCertificate)?;
+        let certs = certs(&mut reader)
+            .collect::<Result<Vec<_>, io::Error>>()
+            .map_err(|_| TLSConnBuildError::UnableParseCaCertificate)?;
 
-        let trust_anchors: Result<Vec<OwnedTrustAnchor>, TLSConnBuildError> = certs
+        let trust_anchors: Result<Vec<TrustAnchor>, TLSConnBuildError> = certs
             .iter()
             .map(|cert| {
-                let ta: Result<TrustAnchor, TLSConnBuildError> =
-                    webpki::TrustAnchor::try_from_cert_der(cert)
-                        .map_err(|_| TLSConnBuildError::UnableParseCaCertificate);
-                let ta = ta?;
-                Ok(OwnedTrustAnchor::from_subject_spki_name_constraints(
-                    ta.subject,
-                    ta.spki,
-                    ta.name_constraints,
-                ))
+                webpki::anchor_from_trusted_cert(cert)
+                    .map_err(|_| TLSConnBuildError::UnableParseCaCertificate)
+                    .map(|ta| ta.to_owned())
             })
             .collect();
-        let trust_anchors = trust_anchors?;
-        self.root_cert
-            .add_server_trust_anchors(trust_anchors.into_iter());
+        self.root_cert.extend(trust_anchors?);
         Ok(())
     }
 
@@ -137,14 +140,12 @@ pub(crate) async fn connect(
     domain: &str,
     tls_params: TlsConnParams,
 ) -> Result<TlsStream<TcpStream>, TLSConnBuildError> {
-    let domain = ServerName::try_from(domain)
+    let domain = ServerName::try_from(domain.to_owned())
         .map_err(|_| TLSConnBuildError::UnableToConnect("Invalid dns name".to_owned()))?;
 
     log::trace!("Connecting TLS using domain: {domain:?}");
 
-    let config_builder = ClientConfig::builder()
-        .with_safe_defaults()
-        .with_root_certificates(tls_params.root_cert);
+    let config_builder = ClientConfig::builder().with_root_certificates(tls_params.root_cert);
 
     let config = config_builder
         .with_client_auth_cert(tls_params.client_certs, tls_params.client_key)

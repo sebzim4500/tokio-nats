@@ -144,7 +144,7 @@ pub async fn connect(config: NatsConfig) -> Result<NatsClient, Error> {
     let (_, framed) = create_connection(&config).await?;
 
     let client_inner = Arc::new(NatsClientInner {
-        config: config.clone(),
+        config,
         subscription_manager: Mutex::new(SubscriptionManager::new()),
         control_sender: Mutex::new(op_sender.clone()),
     });
@@ -185,7 +185,7 @@ async fn create_connection(config: &NatsConfig) -> Result<(ServerInfo, FrameType
         return Err(Error::ProtocolError);
     };
 
-    log::trace!("Info: {info:?}");
+    trace!("Info: {info:?}");
 
     let mut framed = match (info.tls_verify, config.tls_params.clone()) {
         (true, Some(tls_params)) => {
