@@ -5,7 +5,7 @@ There are still features missing, but it should be ready for use in simple situa
 ## Installation
 ```toml
 [dependencies]
-tokio-nats = "0.3.0"
+tokio-nats = "0.4.0"
 ```
 ## Usage
 ```rust
