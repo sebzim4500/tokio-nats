@@ -7,6 +7,12 @@ license = "LGPL-3.0"
 description = "Async-await ready NATS library"
 repository = "https://github.com/sebzim4500/tokio-nats"
 
+[features]
+default = ["aws-lc-rs"]
+aws_lc_rs = ["tokio-rustls/aws_lc_rs"]
+aws-lc-rs = ["aws_lc_rs"]
+ring = ["tokio-rustls/ring"]
+
 [dependencies]
 tokio = { version = "1.4", features = ["full"] }
 tokio-util = { version = "0.7.4", features = ["codec"] }
@@ -18,7 +24,7 @@ subslice = "0.2.2"
 parking_lot = "0.12.1"
 derive_builder = "0.20.1"
 log = "0.4"
-tokio-rustls = "0.26.0"
+tokio-rustls = { version = "0.26.0", default-features = false, features = ["logging", "tls12"] }
 rustls-webpki = "0.102.8"
 rustls-pemfile = "2.2.0"
 derive_more = { version = "1.0.0", features = ["display"] }
