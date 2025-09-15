@@ -35,7 +35,7 @@ impl NatsClient {
     /// The future will resolve as soon as the message has been successfully queued into the buffer,
     /// there is no guarantee that messages will be delivered in the case of connection failures.
     pub async fn publish<S: Into<String>, B: Into<Bytes>>(
-        &mut self,
+        &self,
         subject: S,
         message: B,
     ) -> Result<(), Error> {
@@ -50,7 +50,7 @@ impl NatsClient {
     /// Since NATS does not send acknowledgements for subscriptions, this function returns
     /// immediately and it is possible to miss messages sent soon after `subscribe` returns.
     pub async fn subscribe<S: Into<String>>(
-        &mut self,
+        &self,
         subject: S,
     ) -> Result<NatsSubscription, Error> {
         let subject_string = subject.into();
