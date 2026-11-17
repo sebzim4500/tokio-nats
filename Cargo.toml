@@ -25,7 +25,7 @@ parking_lot = "0.12.1"
 derive_builder = "0.20.1"
 log = "0.4"
 tokio-rustls = { version = "0.26.0", default-features = false, features = ["logging", "tls12"] }
-rustls-webpki = "0.102.8"
+rustls-webpki = "0.103.16"
 rustls-pemfile = "2.2.0"
 derive_more = { version = "1.0.0", features = ["display"] }
 
