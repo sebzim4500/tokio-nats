@@ -6,10 +6,12 @@ workflows:
     '.github/workflows/ci.yml':
         - 'actions-rust-lang/setup-rust-toolchain@v2.0.1'
         - 'actions/checkout@v7.0.1'
+        - 'nicknovitski/nix-develop@v1.2.1'
         - 'nixbuild/nix-quick-install-action@v35'
     '.github/workflows/lint.yml':
         - 'actions-rust-lang/setup-rust-toolchain@v2.0.1'
         - 'actions/checkout@v7.0.1'
+        - 'nicknovitski/nix-develop@v1.2.1'
         - 'nixbuild/nix-quick-install-action@v35'
 dependencies:
     'actions-rust-lang/setup-rust-toolchain@v2.0.1':
@@ -24,6 +26,11 @@ dependencies:
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
         owner_id: 44036562
         repo_id: 197814629
+    'nicknovitski/nix-develop@v1.2.1':
+        ref: 'v1.2.1'
+        commit: 'sha1-9be7cfb4b10451d3390a75dc18ad0465bed4932a'
+        owner_id: 151337
+        repo_id: 706956179
     'nixbuild/nix-quick-install-action@v35':
         ref: 'v35'
         commit: 'sha1-9f63be77f412a248c9d9a65a4c82cf066cdf8f0c'

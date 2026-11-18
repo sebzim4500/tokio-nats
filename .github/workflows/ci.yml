@@ -35,5 +35,8 @@ jobs:
       - name: Install Nix
         uses: nixbuild/nix-quick-install-action@v35
 
+      - name: Enter Nix dev shell
+        uses: nicknovitski/nix-develop@v1.2.1
+
       - name: Run tests
-        run: nix develop --no-update-lock-file -c just test
+        run: just test

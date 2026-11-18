@@ -36,5 +36,8 @@ jobs:
       - name: Install Nix
         uses: nixbuild/nix-quick-install-action@v35
 
+      - name: Enter Nix dev shell
+        uses: nicknovitski/nix-develop@v1.2.1
+
       - name: Check formatting and run Clippy
-        run: nix develop --no-update-lock-file -c just check
+        run: just check
