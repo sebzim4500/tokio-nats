@@ -11,10 +11,10 @@ use tokio::net::{lookup_host, TcpStream};
 use tokio::sync::mpsc::{channel, error::TrySendError, Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
-use futures_util::future::{FutureExt, TryFutureExt};
+use futures_util::future::{FutureExt as _, TryFutureExt as _};
 use futures_util::select;
-use futures_util::sink::SinkExt;
-use futures_util::stream::StreamExt;
+use futures_util::sink::SinkExt as _;
+use futures_util::stream::StreamExt as _;
 use log::{debug, error, info, trace, warn};
 use tokio_rustls::client::TlsStream;
 use tokio_util::codec::Framed;

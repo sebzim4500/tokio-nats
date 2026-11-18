@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufReader};
 
-use futures_util::StreamExt;
+use futures_util::StreamExt as _;
 use tokio_nats::{connect, NatsConfigBuilder, TLSConnBuild};
 
 #[tokio::main]

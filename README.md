@@ -10,7 +10,7 @@ tokio-nats = "0.4.2"
 ## Usage
 ```rust
 use tokio_nats::{NatsConfigBuilder, connect};
-use futures_util::StreamExt;
+use futures_util::StreamExt as _;
 async fn demo() {
     let config = NatsConfigBuilder::default()
         .server("127.0.0.1:4222")

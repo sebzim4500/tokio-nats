@@ -14,7 +14,7 @@
 //! ```rust
 //!
 //! use tokio_nats::{NatsConfigBuilder, connect};
-//! use futures_util::StreamExt;
+//! use futures_util::StreamExt as _;
 //!
 //! async fn demo() {
 //!     let config = NatsConfigBuilder::default()
