@@ -2,11 +2,11 @@ use std::io;
 use std::io::BufRead;
 use std::sync::Arc;
 
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, TrustAnchor};
+use rustls::{ClientConfig, RootCertStore};
 use rustls_pemfile::{certs, read_one};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
-use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, TrustAnchor};
-use tokio_rustls::rustls::{ClientConfig, RootCertStore};
 use tokio_rustls::TlsConnector;
 
 #[derive(Debug)]
