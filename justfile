@@ -11,6 +11,7 @@ check:
     just --check --fmt
     nixpkgs-fmt --check flake.nix
     cargo fmt --all -- --check
+    just rdme --check
     cargo clippy --all-targets --all-features
 
 # Format project files.
@@ -18,6 +19,11 @@ fmt:
     just --fmt
     nixpkgs-fmt flake.nix
     cargo fmt --all
+    just rdme --force
+
+# Generate or check the README from crate root documentation.
+rdme *args:
+    cargo rdme {{ args }}
 
 # Run the test suite with each TLS backend.
 test:
