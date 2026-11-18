@@ -27,7 +27,6 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
         with:
-          toolchain: stable
           components: rustfmt,clippy
           cache-key: ${{ hashFiles('flake.lock') }}
 
@@ -39,6 +38,26 @@ jobs:
 
       - name: Check formatting and run Clippy
         run: just check
+
+  audit:
+    name: Audit
+    runs-on: ubuntu-slim
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
+
+      - name: Install cargo-deny and Just
+        uses: taiki-e/install-action@v2.89.1
+        with:
+          tool: cargo-deny,just
+
+      - name: Check security advisories
+        run: just check-advisories
 
   zizmor:
     name: GitHub Actions Security

@@ -13,6 +13,10 @@ check: && clippy
     cargo fmt --all -- --check
     just rdme --check
 
+# Check security advisories.
+check-advisories:
+    cargo deny --log-level warn --workspace --all-features check advisories
+
 # Run clippy on workspace.
 clippy:
     cargo clippy --workspace --all-targets --all-features
