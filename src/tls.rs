@@ -1,10 +1,9 @@
-use std::io;
 use std::io::BufRead;
 use std::sync::Arc;
 
+use rustls::pki_types::pem::ReadIter;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, TrustAnchor};
 use rustls::{ClientConfig, RootCertStore};
-use rustls_pemfile::{certs, read_one};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
@@ -48,31 +47,6 @@ impl Default for TLSConnBuild {
     }
 }
 
-fn load_key(mut reader: &mut dyn BufRead) -> Result<PrivateKeyDer<'static>, TLSConnBuildError> {
-    loop {
-        match read_one(&mut reader).map_err(|_| TLSConnBuildError::UnableParseClientKey)? {
-            Some(rustls_pemfile::Item::Sec1Key(key)) => {
-                log::trace!("ECKey");
-                return Ok(PrivateKeyDer::Sec1(key));
-            }
-            Some(rustls_pemfile::Item::Pkcs1Key(key)) => {
-                log::trace!("RSAKey");
-                return Ok(PrivateKeyDer::Pkcs1(key));
-            }
-            Some(rustls_pemfile::Item::Pkcs8Key(key)) => {
-                log::trace!("PKCS8Key");
-                return Ok(PrivateKeyDer::Pkcs8(key));
-            }
-            None => {
-                log::debug!("No type found");
-                break;
-            }
-            _ => {}
-        }
-    }
-    Err(TLSConnBuildError::UnableParseClientKey)
-}
-
 impl TLSConnBuild {
     pub fn new() -> TLSConnBuild {
         TLSConnBuild {
@@ -82,22 +56,29 @@ impl TLSConnBuild {
         }
     }
 
-    pub fn client_certs(&mut self, mut reader: &mut dyn BufRead) -> Result<(), TLSConnBuildError> {
-        self.client_certs = certs(&mut reader)
-            .collect::<Result<Vec<_>, io::Error>>()
+    pub fn client_certs(&mut self, reader: &mut dyn BufRead) -> Result<(), TLSConnBuildError> {
+        self.client_certs = ReadIter::new(reader)
+            .collect::<Result<_, _>>()
             .map_err(|_| TLSConnBuildError::UnableParseClientCertificate)?;
 
         Ok(())
     }
 
     pub fn client_key(&mut self, reader: &mut dyn BufRead) -> Result<(), TLSConnBuildError> {
-        self.client_key = Some(load_key(reader)?);
+        // Read through the caller's buffer so the next PEM section stays available.
+        let key = ReadIter::new(reader)
+            .next()
+            .and_then(Result::ok)
+            .ok_or(TLSConnBuildError::UnableParseClientKey)?;
+
+        self.client_key = Some(key);
+
         Ok(())
     }
 
-    pub fn root_cert(&mut self, mut reader: &mut dyn BufRead) -> Result<(), TLSConnBuildError> {
-        let certs = certs(&mut reader)
-            .collect::<Result<Vec<_>, io::Error>>()
+    pub fn root_cert(&mut self, reader: &mut dyn BufRead) -> Result<(), TLSConnBuildError> {
+        let certs = ReadIter::new(reader)
+            .collect::<Result<Vec<_>, _>>()
             .map_err(|_| TLSConnBuildError::UnableParseCaCertificate)?;
 
         let trust_anchors: Result<Vec<TrustAnchor>, TLSConnBuildError> = certs
@@ -157,4 +138,21 @@ pub(crate) async fn connect(
         .connect(domain, stream)
         .await
         .map_err(|e| TLSConnBuildError::UnableToConnect(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn client_key_leaves_following_certificate_unread() {
+        let mut reader = &b"-----BEGIN PRIVATE KEY-----\nAQID\n-----END PRIVATE KEY-----\n\
+                            -----BEGIN CERTIFICATE-----\nBAUG\n-----END CERTIFICATE-----\n"[..];
+        let mut builder = TLSConnBuild::new();
+
+        builder.client_key(&mut reader).unwrap();
+        builder.client_certs(&mut reader).unwrap();
+
+        assert_eq!(builder.client_certs, [CertificateDer::from(&[4, 5, 6][..])]);
+    }
 }
