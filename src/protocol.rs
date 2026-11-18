@@ -1,7 +1,7 @@
 use crate::errors::Error;
 use bytes::{Buf, Bytes, BytesMut};
+use memchr::memmem;
 use serde::Deserialize;
-use subslice::SubsliceExt as _;
 use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,7 +61,7 @@ impl Decoder for NatsCodec {
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if src.starts_with(b"MSG ") {
-            let line_end = if let Some(end) = src.find(b"\r\n") {
+            let line_end = if let Some(end) = memmem::find(src, b"\r\n") {
                 end
             } else {
                 return Ok(None);
@@ -91,7 +91,7 @@ impl Decoder for NatsCodec {
             src.advance(6);
             Ok(Some(ServerOp::Pong))
         } else if src.starts_with(b"INFO") {
-            if let Some(n) = src.find(b"\r\n") {
+            if let Some(n) = memmem::find(src, b"\r\n") {
                 let info_string = std::str::from_utf8(&src[5..n])?.trim();
                 let server_op = ServerOp::Info(serde_json::from_str(info_string)?);
                 src.advance(n + 2);
@@ -100,7 +100,7 @@ impl Decoder for NatsCodec {
                 Ok(None)
             }
         } else if src.starts_with(b"-ERR '") {
-            if let Some(n) = src.find(b"'\r\n") {
+            if let Some(n) = memmem::find(src, b"'\r\n") {
                 let err_string = std::str::from_utf8(&src[6..n])?;
                 Ok(Some(ServerOp::Err(err_string.to_string())))
             } else {
