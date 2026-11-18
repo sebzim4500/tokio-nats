@@ -17,16 +17,16 @@ aws-lc-rs = ["tokio-rustls/aws_lc_rs"]
 ring = ["tokio-rustls/ring"]
 
 [dependencies]
-tokio = { version = "1.4", features = ["full"] }
+tokio = { version = "1.21", features = ["full"] }
 tokio-util = { version = "0.7.4", features = ["codec"] }
 bytes = "1.2.1"
 serde_json = "1.0.41"
-serde = { version = "1.0.102", features = ["derive"] }
+serde = { version = "1.0.113", features = ["derive"] }
 futures-util = { version = "0.3.1", features = ["sink", "async-await"] }
 memchr = "2.4"
 parking_lot = "0.13"
 derive_builder = "0.20.1"
-log = "0.4"
+log = "0.4.14"
 tokio-rustls = { version = "0.26.0", default-features = false, features = ["logging", "tls12"] }
 rustls = { version = "0.23", default-features = false, features = ["std"] }
 rustls-webpki = "0.103.16"
