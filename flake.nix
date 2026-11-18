@@ -1,7 +1,12 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    flake-parts.url = "github:hercules-ci/flake-parts";
+
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+
     x52 = {
       url = "github:x52dev/nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -15,7 +20,7 @@
 
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
 
-      perSystem = { pkgs, config, inputs', lib, ... }: {
+      perSystem = { pkgs, config, inputs', ... }: {
         formatter = pkgs.nixpkgs-fmt;
 
         devShells.ci-release = pkgs.mkShellNoCC {
@@ -29,8 +34,6 @@
             pkgs.jq
             pkgs.just
             pkgs.nats-server
-          ] ++ lib.optionals pkgs.stdenv.isDarwin [
-            pkgs.pkgsBuildHost.libiconv
           ];
 
           shellHook = config.x52.justRust.shellHook;
