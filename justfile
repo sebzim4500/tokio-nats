@@ -1,4 +1,4 @@
-import '.toolchain/rust.just'
+import? '.toolchain/rust.just'
 
 # Evaluate the shared MSRV only when a recipe uses it.
 set lazy
@@ -7,17 +7,26 @@ _list:
     @just --list
 
 # Check formatting and lint the library and examples.
-check:
+check: && clippy
     just --check --fmt
     nixpkgs-fmt --check flake.nix
     cargo fmt --all -- --check
-    cargo clippy --all-targets --all-features
+    just rdme --check
+
+# Run clippy on workspace.
+clippy:
+    cargo clippy --workspace --all-targets --all-features
 
 # Format project files.
 fmt:
     just --fmt
     nixpkgs-fmt flake.nix
     cargo fmt --all
+    @just rdme --force
+
+# Generate or check the README from crate root documentation.
+rdme *args:
+    cargo rdme {{ args }}
 
 # Run the test suite with each TLS backend.
 test:
