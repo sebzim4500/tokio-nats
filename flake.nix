@@ -25,6 +25,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             config.formatter
+            pkgs.cargo-rdme
             pkgs.cmake
             pkgs.jq
             pkgs.just
