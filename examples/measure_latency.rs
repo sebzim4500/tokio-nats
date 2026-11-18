@@ -4,10 +4,12 @@ use std::time::{Duration, Instant};
 
 use futures_util::StreamExt as _;
 use tokio_nats::{NatsConfigBuilder, connect};
+use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
 #[tokio::main()]
 async fn main() -> Result<(), tokio_nats::Error> {
-    env_logger::init();
+    init_logging();
+
     let config = NatsConfigBuilder::default()
         .server("127.0.0.1:4222")
         .build()
@@ -42,4 +44,16 @@ async fn main() -> Result<(), tokio_nats::Error> {
             pub_client.publish("TIMES", bytes.clone()).await?;
         }
     }
+}
+
+fn init_logging() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .without_time()
+        .with_writer(std::io::stderr)
+        .init();
 }

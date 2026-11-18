@@ -2,10 +2,11 @@ use std::{fs::File, io::BufReader};
 
 use futures_util::StreamExt as _;
 use tokio_nats::{NatsConfigBuilder, TLSConnBuild, connect};
+use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    init_logging();
 
     let mut args = std::env::args().skip(1);
 
@@ -65,4 +66,16 @@ async fn main() {
             println!("Received message {:?}", message);
         })
         .await;
+}
+
+fn init_logging() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .without_time()
+        .with_writer(std::io::stderr)
+        .init();
 }
