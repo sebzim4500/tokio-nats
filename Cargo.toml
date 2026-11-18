@@ -1,6 +1,6 @@
 [package]
 name = "tokio-nats"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Sebastian Zimmer <sebastian.zim@googlemail.com>", "Rob Ede <robjtede@icloud.com>"]
 edition = "2024"
 rust-version = "1.95"

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.5.0
+
 - The `Error::source()` trait method now returns error sources where applicable.
 - Remove `aws_lc_rs` feature alias, use `aws-lc-rs`.
 - Remove `aws-lc-rs` from default features.
