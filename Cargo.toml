@@ -27,7 +27,6 @@ log = "0.4"
 tokio-rustls = { version = "0.26.0", default-features = false, features = ["logging", "tls12"] }
 rustls = { version = "0.23", default-features = false, features = ["std"] }
 rustls-webpki = "0.103.16"
-rustls-pemfile = "2.2.0"
 impl-more = "0.3.8"
 
 [dev-dependencies]
