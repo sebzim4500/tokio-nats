@@ -17,6 +17,8 @@ workflows:
     '.github/workflows/release.yml':
         - 'actions-rust-lang/setup-rust-toolchain@v2.0.1'
         - 'actions/checkout@v7.0.1'
+        - 'nicknovitski/nix-develop@v1.2.1'
+        - 'nixbuild/nix-quick-install-action@v35'
         - 'release-plz/action@v0.5.148'
         - 'rust-lang/crates-io-auth-action@v1.0.6'
 dependencies:
