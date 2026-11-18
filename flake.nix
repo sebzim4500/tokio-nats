@@ -34,9 +34,11 @@
             pkgs.cargo-hack
             pkgs.cargo-rdme
             pkgs.cmake
+            pkgs.fd
             pkgs.jq
             pkgs.just
             pkgs.nats-server
+            pkgs.taplo
           ];
 
           shellHook = config.x52.justRust.shellHook;
