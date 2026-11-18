@@ -49,10 +49,7 @@ impl NatsClient {
     ///
     /// Since NATS does not send acknowledgements for subscriptions, this function returns
     /// immediately and it is possible to miss messages sent soon after `subscribe` returns.
-    pub async fn subscribe<S: Into<String>>(
-        &self,
-        subject: S,
-    ) -> Result<NatsSubscription, Error> {
+    pub async fn subscribe<S: Into<String>>(&self, subject: S) -> Result<NatsSubscription, Error> {
         let subject_string = subject.into();
         let (sender, receiver) = channel(self.inner.config.buffer_size);
         let sid = self
