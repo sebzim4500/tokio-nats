@@ -1,5 +1,5 @@
 use futures_util::StreamExt as _;
-use tokio_nats::{connect, NatsConfigBuilder};
+use tokio_nats::{NatsConfigBuilder, connect};
 
 #[tokio::main]
 async fn main() {

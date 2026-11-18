@@ -5,8 +5,8 @@ use rustls::pki_types::pem::ReadIter;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName, TrustAnchor};
 use rustls::{ClientConfig, RootCertStore};
 use tokio::net::TcpStream;
-use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
+use tokio_rustls::client::TlsStream;
 
 #[derive(Debug)]
 pub enum TLSConnBuildError {
