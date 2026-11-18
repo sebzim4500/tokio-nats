@@ -13,6 +13,7 @@ workflows:
         - 'actions/checkout@v7.0.1'
         - 'nicknovitski/nix-develop@v1.2.1'
         - 'nixbuild/nix-quick-install-action@v35'
+        - 'taiki-e/install-action@v2.89.1'
         - 'zizmorcore/zizmor-action@v0.8.1'
     '.github/workflows/release.yml':
         - 'actions-rust-lang/setup-rust-toolchain@v2.0.1'
@@ -75,6 +76,11 @@ dependencies:
     'taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b':
         ref: 'v2.89.0'
         commit: 'sha1-1919c4a95903d2c33e4a221102edca87309fc14b'
+        owner_id: 43724913
+        repo_id: 442947557
+    'taiki-e/install-action@v2.89.1':
+        ref: 'v2.89.1'
+        commit: 'sha1-682ce6c3c696a4cd5168a05f98e51aa02b877941'
         owner_id: 43724913
         repo_id: 442947557
     'zizmorcore/zizmor-action@v0.8.1':

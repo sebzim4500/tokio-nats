@@ -27,7 +27,6 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
         with:
-          toolchain: stable
           cache-key: ${{ hashFiles('flake.lock') }}
 
       - name: Install Nix

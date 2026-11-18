@@ -30,6 +30,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             config.formatter
+            pkgs.cargo-deny
             pkgs.cargo-hack
             pkgs.cargo-rdme
             pkgs.cmake
