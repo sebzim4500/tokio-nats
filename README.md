@@ -10,13 +10,13 @@ tokio-nats = "0.4.2"
 ## Usage
 ```rust
 use tokio_nats::{NatsConfigBuilder, connect};
-use futures_util::StreamExt;
+use futures_util::StreamExt as _;
 async fn demo() {
     let config = NatsConfigBuilder::default()
         .server("127.0.0.1:4222")
         .build()
         .unwrap();
-    let mut client = connect(config).await.unwrap();
+    let client = connect(config).await.unwrap();
     client.publish("MySubject", "hello world".as_bytes()).await.unwrap();
     client.subscribe("MyOtherSubject").await.unwrap().for_each(async move |message| {
         println!("Received message {:?}", message);

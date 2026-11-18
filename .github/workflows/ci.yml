@@ -2,7 +2,6 @@ name: CI
 
 on:
   pull_request:
-    branches: [master]
   merge_group:
     types: [checks_requested]
   push:
@@ -29,7 +28,6 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
         with:
           toolchain: stable
-          build-warnings: warn
           cache-key: ${{ hashFiles('flake.lock') }}
 
       - name: Install Nix

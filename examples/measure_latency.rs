@@ -1,8 +1,8 @@
-use env_logger;
-use futures_util::StreamExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+use futures_util::StreamExt as _;
 use tokio_nats::{connect, NatsConfigBuilder};
 
 #[tokio::main()]
@@ -12,9 +12,9 @@ async fn main() -> Result<(), tokio_nats::Error> {
         .server("127.0.0.1:4222")
         .build()
         .unwrap();
-    let mut pub_client = connect(config.clone()).await?;
+    let pub_client = connect(config.clone()).await?;
     let counter = Arc::new(AtomicUsize::new(0));
-    let mut sub_client = connect(config).await?;
+    let sub_client = connect(config).await?;
     let subscription = sub_client.subscribe("TIMES").await?;
     let start_time = Instant::now();
 
@@ -27,7 +27,7 @@ async fn main() -> Result<(), tokio_nats::Error> {
                     .parse::<u128>()
                     .unwrap();
 
-                if counter.fetch_add(1, Ordering::SeqCst) % 500 == 0 {
+                if counter.fetch_add(1, Ordering::SeqCst).is_multiple_of(500) {
                     println!("{:?}: Latency = {}", Instant::now(), nanos - time_sent);
                 }
             })

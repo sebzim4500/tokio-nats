@@ -2,7 +2,6 @@ name: Lint
 
 on:
   pull_request:
-    branches: [master]
   merge_group:
     types: [checks_requested]
   push:
@@ -30,7 +29,6 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt,clippy
-          build-warnings: warn
           cache-key: ${{ hashFiles('flake.lock') }}
 
       - name: Install Nix
@@ -41,3 +39,22 @@ jobs:
 
       - name: Check formatting and run Clippy
         run: just check
+
+  zizmor:
+    name: GitHub Actions Security
+    runs-on: ubuntu-slim
+
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check GitHub Actions security
+        uses: zizmorcore/zizmor-action@v0.8.1
+        with:
+          advanced-security: false
+          annotations: true

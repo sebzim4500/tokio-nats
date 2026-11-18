@@ -1,7 +1,7 @@
 use crate::errors::Error;
 use bytes::{Buf, Bytes, BytesMut};
 use serde::Deserialize;
-use subslice::SubsliceExt;
+use subslice::SubsliceExt as _;
 use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Debug, Clone, PartialEq)]
