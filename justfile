@@ -10,6 +10,7 @@ _list:
 check: && clippy
     just --check --fmt
     nixpkgs-fmt --check flake.nix
+    fd --type=file --hidden --extension=toml --exec-batch taplo format --check
     cargo fmt --all -- --check
     just rdme --check
 
@@ -26,6 +27,7 @@ clippy:
 fmt:
     just --fmt
     nixpkgs-fmt flake.nix
+    fd --type=file --hidden --extension=toml --exec-batch taplo format
     cargo fmt --all
     @just rdme --force
 
