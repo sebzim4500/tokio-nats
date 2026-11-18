@@ -16,6 +16,7 @@ check: && clippy
 # Run clippy on workspace.
 clippy:
     cargo clippy --workspace --all-targets --all-features
+    cargo hack --workspace clippy --all-targets --feature-powerset
 
 # Format project files.
 fmt:
