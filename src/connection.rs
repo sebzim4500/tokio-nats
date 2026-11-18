@@ -11,8 +11,6 @@ use tokio::net::{TcpStream, lookup_host};
 use tokio::sync::mpsc::{Receiver, Sender, channel, error::TrySendError};
 use tokio::time::{sleep, timeout};
 
-use futures_util::future::{FutureExt as _, TryFutureExt as _};
-use futures_util::select;
 use futures_util::sink::SinkExt as _;
 use futures_util::stream::StreamExt as _;
 use log::{debug, error, info, trace, warn};
@@ -41,8 +39,8 @@ impl NatsClient {
     ) -> Result<(), Error> {
         self.send_queue
             .send(ClientOp::Pub(subject.into(), message.into()))
-            .map_err(|_| Error::ClientClosed)
             .await
+            .map_err(|_| Error::ClientClosed)
     }
 
     /// Subscribe to a particular subject or pattern.
@@ -247,15 +245,15 @@ impl NatsConnection {
 
         loop {
             let next = match &mut self.connection {
-                FrameType::Plain(c) => select! {
-                    op = self.op_receiver.recv().fuse() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
-                    op = c.next().fuse() => op.map(|x| x.map(NatsAction::Server)
+                FrameType::Plain(c) => tokio::select! {
+                    op = self.op_receiver.recv() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
+                    op = c.next() => op.map(|x| x.map(NatsAction::Server)
                         .unwrap_or(NatsAction::ConnectionDropped))
                         .unwrap_or(NatsAction::ConnectionDropped),
                 },
-                FrameType::Tls(c) => select! {
-                    op = self.op_receiver.recv().fuse() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
-                    op = c.next().fuse() => op.map(|x| x.map(NatsAction::Server)
+                FrameType::Tls(c) => tokio::select! {
+                    op = self.op_receiver.recv() => op.map(NatsAction::Client).unwrap_or(NatsAction::SenderDropped),
+                    op = c.next() => op.map(|x| x.map(NatsAction::Server)
                         .unwrap_or(NatsAction::ConnectionDropped))
                         .unwrap_or(NatsAction::ConnectionDropped),
                 },
