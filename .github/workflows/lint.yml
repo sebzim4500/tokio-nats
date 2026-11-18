@@ -1,0 +1,43 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [master]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Format and Clippy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v2.0.1
+        with:
+          toolchain: stable
+          components: rustfmt,clippy
+          build-warnings: warn
+          cache-key: ${{ hashFiles('flake.lock') }}
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v35
+
+      - name: Enter Nix dev shell
+        uses: nicknovitski/nix-develop@v1.2.1
+
+      - name: Check formatting and run Clippy
+        run: just check
