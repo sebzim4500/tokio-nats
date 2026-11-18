@@ -7,8 +7,8 @@ use bytes::Bytes;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::net::{lookup_host, TcpStream};
-use tokio::sync::mpsc::{channel, error::TrySendError, Receiver, Sender};
+use tokio::net::{TcpStream, lookup_host};
+use tokio::sync::mpsc::{Receiver, Sender, channel, error::TrySendError};
 use tokio::time::{sleep, timeout};
 
 use futures_util::future::{FutureExt as _, TryFutureExt as _};
@@ -350,13 +350,12 @@ impl NatsConnection {
                     .subscription_manager
                     .lock()
                     .sender_with_sid(sid)
-                {
-                    if let Err(TrySendError::Full(_)) = sender.try_send(NatsMessage {
+                    && let Err(TrySendError::Full(_)) = sender.try_send(NatsMessage {
                         subject,
                         payload: message,
-                    }) {
-                        error!("Slow consumer, dropping message from server")
-                    }
+                    })
+                {
+                    error!("Slow consumer, dropping message from server")
                 }
             }
             _ => {}

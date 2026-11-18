@@ -43,7 +43,7 @@ mod subscriptions;
 mod tls;
 
 use bytes::Bytes;
-pub use connection::{connect, NatsClient, NatsConfig, NatsConfigBuilder};
+pub use connection::{NatsClient, NatsConfig, NatsConfigBuilder, connect};
 pub use errors::Error;
 pub use subscriptions::NatsSubscription;
 pub use tls::{TLSConnBuild, TLSConnBuildError, TlsConnParams};

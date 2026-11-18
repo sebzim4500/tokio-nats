@@ -1,9 +1,9 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use futures_util::StreamExt as _;
-use tokio_nats::{connect, NatsConfigBuilder};
+use tokio_nats::{NatsConfigBuilder, connect};
 
 #[tokio::main()]
 async fn main() -> Result<(), tokio_nats::Error> {
