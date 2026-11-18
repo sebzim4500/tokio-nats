@@ -194,7 +194,7 @@ async fn create_connection(config: &NatsConfig) -> Result<(ServerInfo, FrameType
             let tls_stream = tls::connect(framed.into_inner(), domain, tls_params)
                 .await
                 .map_err(|_| Error::ClientClosed)?;
-            FrameType::Tls(Framed::new(tls_stream, NatsCodec::new()))
+            FrameType::Tls(Box::new(Framed::new(tls_stream, NatsCodec::new())))
         }
         _ => FrameType::Plain(framed),
     };
@@ -217,7 +217,7 @@ async fn create_connection(config: &NatsConfig) -> Result<(ServerInfo, FrameType
 
 enum FrameType {
     Plain(Framed<TcpStream, NatsCodec>),
-    Tls(Framed<TlsStream<TcpStream>, NatsCodec>),
+    Tls(Box<Framed<TlsStream<TcpStream>, NatsCodec>>),
 }
 
 #[derive(Debug)]

@@ -46,7 +46,7 @@ async fn main() {
         .tls_params(tls_build.build().expect("Unable to build TLS Parameters"))
         .build()
         .unwrap();
-    let mut client = connect(config).await.unwrap();
+    let client = connect(config).await.unwrap();
 
     client
         .publish("MySubject", "hello world".as_bytes())
