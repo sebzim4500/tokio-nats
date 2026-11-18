@@ -39,3 +39,19 @@ jobs:
 
       - name: Check formatting and run Clippy
         run: just check
+
+  zizmor:
+    name: GitHub Actions Security
+    runs-on: ubuntu-slim
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check GitHub Actions security
+        uses: zizmorcore/zizmor-action@v0.8.1
+        with:
+          advanced-security: false
+          annotations: true
+          inputs: .github/workflows
