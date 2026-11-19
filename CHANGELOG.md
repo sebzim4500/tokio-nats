@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.5.1
+
+- No significant changes since `0.5.0`.
+
 ## 0.5.0
 
 - The `Error::source()` trait method now returns error sources where applicable.
