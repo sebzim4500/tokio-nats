@@ -3,10 +3,10 @@
 <!-- prettier-ignore-start -->
 
 [![crates.io](https://img.shields.io/crates/v/tokio-nats?label=latest)](https://crates.io/crates/tokio-nats)
-[![Documentation](https://docs.rs/tokio-nats/badge.svg?version=0.5.0)](https://docs.rs/tokio-nats/0.5.0)
+[![Documentation](https://docs.rs/tokio-nats/badge.svg?version=0.5.1)](https://docs.rs/tokio-nats/0.5.1)
 ![LGPL-3.0 licensed](https://img.shields.io/crates/l/tokio-nats.svg)
 <br />
-[![dependency status](https://deps.rs/crate/tokio-nats/0.5.0/status.svg)](https://deps.rs/crate/tokio-nats/0.5.0)
+[![dependency status](https://deps.rs/crate/tokio-nats/0.5.1/status.svg)](https://deps.rs/crate/tokio-nats/0.5.1)
 [![Download](https://img.shields.io/crates/d/tokio-nats.svg)](https://crates.io/crates/tokio-nats)
 [![CI](https://github.com/x52dev/tokio-nats/actions/workflows/ci.yml/badge.svg)](https://github.com/x52dev/tokio-nats/actions/workflows/ci.yml)
 
