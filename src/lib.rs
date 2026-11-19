@@ -1,4 +1,4 @@
-//! A client for NATS using `tokio` and async-await.
+//! A client for [NATS](https://docs.nats.io/) using `tokio` and async-await.
 //!
 //! There are still features missing, but it should be ready for use in simple situations.
 //!
